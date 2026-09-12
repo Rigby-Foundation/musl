@@ -1,0 +1,58 @@
+CONTRIBUTING TO libc (musl for sic)
+===================================
+
+By submitting a patch to this project, you agree to the Developer
+Certificate of Origin 1.1 (DCO) detailed below.
+
+
+1. SUBMISSION RULES
+-------------------
+
+- Every commit MUST contain a valid "Signed-off-by:" line matching your
+  git author identity (e.g. `git commit -s`). Commits without this line
+  will be dropped immediately without review.
+- This is a fork of musl, not a rewrite. Anything that is not required to
+  run on sic goes upstream to musl, not here. Keep the diff against
+  upstream small enough to read in one sitting; NOTICE lists every file we
+  touch, and your patch updates that list or it is wrong.
+- Never edit arch/x86_64/bits/syscall.h.in by hand. It is generated from
+  the kernel's syscall table (`make abi`). Numbers are assigned in the
+  kernel tree and nowhere else.
+- Do not "fix" a missing syscall by emulating it in the libc. If the kernel
+  returns ENOSYS, the program sees ENOSYS. Take it to the kernel.
+- Do not touch COPYRIGHT or any upstream copyright notice. Upstream files
+  stay MIT. Our changes are LGPL-2.1-or-later and carry an SPDX tag; that
+  applies to new files only, never to lines inside upstream files.
+- Do not break the link line. Every program on sic is statically linked at
+  0x8000000000 with -fPIE; a change that needs a different image base, a
+  dynamic linker, or a different crt is a change to every binary on the OS.
+- Read CODE_OF_CONFLICT before submitting anything. If your patch is trash,
+  expect to be told it is trash in plain, direct terms.
+
+
+2. DEVELOPER'S CERTIFICATE OF ORIGIN 1.1
+-----------------------------------------
+
+By making a contribution to this project, I certify that:
+
+(a) The contribution was created in whole or in part by me and I
+    have the right to submit it under the open source license
+    indicated in the file; or
+
+(b) The contribution is based upon previous work that, to the best
+    of my knowledge, is covered under an appropriate open source
+    license and I have the right under that license to submit that
+    work with modifications, whether created in whole or in part
+    by me, under the same open source license (unless I am
+    permitted to submit under a different license), as indicated
+    in the file; or
+
+(c) The contribution was provided directly to me by some other
+    person who certified (a), (b) or (c) and I have not modified
+    it; and
+
+(d) I understand and agree that this project and the contribution
+    are public and that a record of the contribution (including all
+    personal information I submit with it, including my sign-off) is
+    maintained indefinitely and may be redistributed consistent with
+    this project or the open source license(s) involved.

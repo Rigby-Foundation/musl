@@ -1,0 +1,18 @@
+This is the sic fork of musl libc.
+
+Upstream musl (https://musl.libc.org, release 1.2.5) is Copyright (c) 2005-2020
+Rich Felker et al. and MIT licensed; see COPYRIGHT, which applies unchanged to
+every upstream file, including the ones modified below. The sic changes on top
+of it are Copyright (C) 2026 Rigby Foundation and licensed under the GNU Lesser
+General Public License, version 2.1 or later (see LICENSE), so that programs
+linking this libc — statically, as everything on sic does — are not affected:
+
+  arch/x86_64/bits/syscall.h.in   sic's system call numbers (generated from
+                                  sic/abi/syscall.tbl in the kernel tree)
+  arch/x86_64/syscall_arch.h      no vDSO
+  src/thread/x86_64/clone.s, __set_thread_area.s, __unmapself.s,
+  src/signal/x86_64/restore.s, src/process/x86_64/vfork.s
+                                  hard-coded syscall numbers
+  GNUmakefile, README.md, NOTICE, LICENSE
+
+Everything else is unmodified upstream musl.
