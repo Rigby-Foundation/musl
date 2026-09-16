@@ -43,9 +43,10 @@ Makefile).
 
 ## What's missing on the kernel side
 
-Signals are accepted (`sigaction`, `sigprocmask`) but never delivered; threads
-(`clone`, `futex`) are not implemented; `mmap` is anonymous or private
-file-backed only; there is no `pipe`. Those syscalls return `ENOSYS`.
+`mmap` is anonymous or private file-backed only (no shared mappings); no job
+control (`setpgid` is a no-op); no `SIGSTOP`/`SIGCONT`. Sockets are `AF_INET`
+only (TCP, UDP, raw ICMP; no `AF_UNIX`, no `socketpair`). Unimplemented
+syscalls return `ENOSYS`.
 
 ## Contributing
 

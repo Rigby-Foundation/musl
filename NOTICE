@@ -13,6 +13,8 @@ linking this libc — statically, as everything on sic does — are not affected
   src/thread/x86_64/clone.s, __set_thread_area.s, __unmapself.s,
   src/signal/x86_64/restore.s, src/process/x86_64/vfork.s
                                   hard-coded syscall numbers
+  include/linux/fb.h              framebuffer ioctls: forwards to the kernel's
+                                  abi/fb.h (Linux-shaped, so fbdev code ports)
   GNUmakefile, README.md, NOTICE, LICENSE
 
 Everything else is unmodified upstream musl.
