@@ -28,15 +28,15 @@ clrrwi 4, 4, 4
 li 0, 0
 stwu 0, -16(4)
 
-#move c into first arg
+#move c into first arg; sic's clone takes (flags, stack, ptid, ctid, tls)
 mr 3, 5
 #mr 4, 4
 mr 5, 7
-mr 6, 8
-mr 7, 9
+mr 6, 9
+mr 7, 8
 
-# move syscall number into r0    
-li 0, 120
+# move syscall number into r0: sic SYS_clone
+li 0, 4
 
 sc
 
@@ -59,7 +59,7 @@ mtctr 30
 # call CTR reg
 bctrl
 # mov SYS_exit into r0 (the exit param is already in r3)
-li 0, 1
+li 0, 0    # sic SYS_exit
 sc
 
 2:

@@ -11,16 +11,25 @@ sic has its own syscall table — `sic/abi/syscall.tbl` — which is deliberatel
 *not* Linux's numbering (sic is not a Linux clone; Linux binaries will not run).
 The names are the POSIX/musl vocabulary, so musl needs almost no code changes:
 
-- `arch/x86_64/bits/syscall.h.in` — generated from the table (`make abi`)
-- five x86_64 `.s` files with hard-coded numbers (`clone`, `vfork`,
-  `__set_thread_area`, `__unmapself`, `restore`) and the vDSO hooks in
-  `syscall_arch.h` removed
-- built with `-fPIE`, because sic user programs live at `0x8000000000`
+- `arch/<arch>/bits/syscall.h.in` — generated from the table (`make abi`)
+- the few `.s` files with hard-coded numbers (`clone`, `vfork`,
+  `__set_thread_area`, `__unmapself`, `restore`) and, on x86_64, the vDSO
+  hooks in `syscall_arch.h` removed
+- x86_64 is built with `-fPIE`, because sic user programs live at
+  `0x8000000000`; powerpc is plain non-PIC code at `0x10000000`
+- `src/sic/builtins.c`: the 64-bit division/shift/float-conversion helpers a
+  32-bit target expects from libgcc, since nothing ships them for a bare
+  `powerpc-linux-musl` clang
 
-Everything else — struct layouts, calling convention (`syscall` instruction,
-`-errno` returns), TLS via `arch_prctl(ARCH_SET_FS)`, the initial process stack
-with auxv — is what musl's x86_64 port expects and what the kernel implements
-(`sic/include/abi/abi.h`, `sic/kernel/proc/syscall.c`).
+Everything else — struct layouts, calling convention (`syscall` / `sc`,
+`-errno` or CR0.SO+errno returns), TLS, the initial process stack with auxv —
+is what musl's own port of that architecture expects and what the kernel
+implements (`sic/include/abi/abi.h`, `sic/kernel/proc/syscall.c`). On 32-bit
+targets the kernel is time64-only, so `make abi` for them also defines the
+`*_time64` names musl looks for, as aliases of the plain numbers.
+
+Ports: `x86_64` (default) and `powerpc` (32-bit big-endian, `make
+ARCH=powerpc`, built with `-mcpu=7450 -maltivec`).
 
 ## Building
 
@@ -33,13 +42,15 @@ All four sic projects meet in a **sysroot** rather than knowing each other's
 paths: `$SIC_SYSROOT`, default `~/.sic/sysroot` (or `make SYSROOT=...`).
 Install the kernel first (`make install` in
 [sic](https://github.com/Rigby-Foundation/sic)) — it provides the syscall table
-that `make abi` regenerates `arch/x86_64/bits/syscall.h.in` from. musl's own
-`Makefile` and `configure` are untouched.
+that `make abi` regenerates `arch/<arch>/bits/syscall.h.in` from. musl's own
+`Makefile` and `configure` are untouched. Objects go to `obj/<arch>/`, the
+result to `build/<arch>/`.
 
 Compile programs with `clang --target=x86_64-linux-musl -nostdinc -isystem
 $SYSROOT/usr/include -fPIE` and link with `ld.lld -static
 --image-base=0x8000000000 crt1.o crti.o <objs> libc.a crtn.o` (see the ZAE
-Makefile).
+Makefile); for powerpc `--target=powerpc-linux-musl -mcpu=7450 -maltivec`
+and `ld.lld -m elf32ppc --image-base=0x10000000`.
 
 ## What's missing on the kernel side
 

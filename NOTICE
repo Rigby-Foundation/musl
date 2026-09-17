@@ -15,6 +15,10 @@ linking this libc — statically, as everything on sic does — are not affected
                                   hard-coded syscall numbers
   include/linux/fb.h              framebuffer ioctls: forwards to the kernel's
                                   abi/fb.h (Linux-shaped, so fbdev code ports)
+  arch/powerpc/bits/syscall.h.in, src/thread/powerpc/clone.s, __unmapself.s,
+  src/signal/powerpc/restore.s   the same for the 32-bit PowerPC port
+  src/sic/builtins.c              64-bit division/shift helpers the compiler
+                                  expects from libgcc on 32-bit targets
   GNUmakefile, README.md, NOTICE, LICENSE
 
 Everything else is unmodified upstream musl.
