@@ -15,8 +15,12 @@ The names are the POSIX/musl vocabulary, so musl needs almost no code changes:
 - the few `.s` files with hard-coded numbers (`clone`, `vfork`,
   `__set_thread_area`, `__unmapself`, `restore`) and, on x86_64, the vDSO
   hooks in `syscall_arch.h` removed
-- x86_64 is built with `-fPIE`, because sic user programs live at
-  `0x8000000000`; powerpc is plain non-PIC code at `0x10000000`
+- x86_64 and aarch64 are built with `-fPIE`, because sic user programs live
+  at `0x8000000000`; powerpc is plain non-PIC code at `0x10000000`
+- aarch64's `long double` is binary128, so its printf needs the soft-float
+  builtins clang does not ship for a bare target; `make ARCH=aarch64` has
+  Zig bundle its compiler-rt into `libcompiler_rt.a`, installed beside
+  `libc.a` for programs to link
 - `src/sic/builtins.c`: the 64-bit division/shift/float-conversion helpers a
   32-bit target expects from libgcc, since nothing ships them for a bare
   `powerpc-linux-musl` clang
@@ -28,8 +32,8 @@ implements (`sic/include/abi/abi.h`, `sic/kernel/proc/syscall.c`). On 32-bit
 targets the kernel is time64-only, so `make abi` for them also defines the
 `*_time64` names musl looks for, as aliases of the plain numbers.
 
-Ports: `x86_64` (default) and `powerpc` (32-bit big-endian, `make
-ARCH=powerpc`, built with `-mcpu=7450 -maltivec`).
+Ports: `x86_64` (default), `aarch64` (`make ARCH=aarch64`) and `powerpc`
+(32-bit big-endian, `make ARCH=powerpc`, built with `-mcpu=7450 -maltivec`).
 
 ## Building
 
