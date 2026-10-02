@@ -35,15 +35,16 @@ else ifeq ($(ARCH),aarch64)
 TARGET := aarch64-linux-musl
 ARCH_CFLAGS := -fPIE
 ABI_FLAVOUR := musl
-# aarch64's long double is binary128: printf and friends need the soft-float
-# builtins (__multf3, ...), which clang does not ship for this target. Zig
-# does: its compiler-rt, bundled into an archive of its own.
-COMPILER_RT := $(BUILD)/lib/libcompiler_rt.a
 else
 TARGET := x86_64-linux-musl
 ARCH_CFLAGS := -fPIE
 ABI_FLAVOUR := musl
 endif
+# The compiler's runtime builtins, which clang does not ship for these
+# targets: aarch64's binary128 long double (printf needs __multf3, ...), and
+# 128-bit integer division everywhere (libc++'s filesystem clock). Zig has
+# them: its compiler-rt, bundled into an archive of its own.
+COMPILER_RT := $(BUILD)/lib/libcompiler_rt.a
 SYSROOT ?= $(if $(SIC_SYSROOT),$(SIC_SYSROOT),$(HOME)/.sic/sysroot)
 ABI    := $(SYSROOT)/usr/share/sic/abi
 
@@ -54,7 +55,7 @@ all: $(BUILD)/lib/libc.a $(COMPILER_RT)
 $(BUILD)/lib/libcompiler_rt.a: | $(BUILD)/lib/libc.a
 	@mkdir -p $(OBJDIR)/rt
 	echo 'pub export fn sic_compiler_rt_anchor() void {}' > $(OBJDIR)/rt/rt.zig
-	cd $(OBJDIR)/rt && zig build-lib rt.zig -target $(TARGET) -OReleaseFast -fcompiler-rt --name compiler_rt
+	cd $(OBJDIR)/rt && zig build-lib rt.zig -target $(TARGET) -OReleaseFast -fPIC -fcompiler-rt --name compiler_rt   # PIC: sic loads programs above 2 GiB
 	cp $(OBJDIR)/rt/libcompiler_rt.a $@
 
 install: all
