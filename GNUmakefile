@@ -22,6 +22,8 @@ ifeq ($(origin AR),default)
 AR := $(LLVM_PREFIX)/bin/llvm-ar
 endif
 RANLIB ?= $(LLVM_PREFIX)/bin/llvm-ranlib
+LLD_PREFIX ?= $(firstword $(foreach f,lld lld@21 lld@20 llvm,$(if $(wildcard $(shell brew --prefix $(f) 2>/dev/null)/bin/ld.lld),$(shell brew --prefix $(f)),)))
+LD_LLD ?= $(if $(LLD_PREFIX),$(LLD_PREFIX)/bin/ld.lld,ld.lld)
 
 # ARCH selects the musl port: x86_64 (default) or powerpc (32-bit big-endian).
 ARCH   ?= x86_64
@@ -50,7 +52,12 @@ ABI    := $(SYSROOT)/usr/share/sic/abi
 
 .PHONY: all abi install clean distclean
 
-all: $(BUILD)/lib/libc.a $(COMPILER_RT)
+# The shared libc, which is also the dynamic linker (musl's libc.so is its
+# own ld.so, installed as /lib/ld-musl-$(ARCH).so.1). 64-bit ports only for now.
+SHARED := $(if $(filter x86_64 aarch64,$(ARCH)),$(BUILD)/lib/libc.so,)
+SHOBJDIR := $(OBJDIR)-shared
+
+all: $(BUILD)/lib/libc.a $(COMPILER_RT) $(SHARED)
 
 $(BUILD)/lib/libcompiler_rt.a: | $(BUILD)/lib/libc.a
 	@mkdir -p $(OBJDIR)/rt
@@ -63,6 +70,10 @@ install: all
 	cp -R $(BUILD)/include/. $(SYSROOT)/usr/include/
 	cp $(BUILD)/lib/libc.a $(BUILD)/lib/crt1.o $(BUILD)/lib/crti.o $(BUILD)/lib/crtn.o $(SYSROOT)/usr/lib/
 	@[ -z "$(COMPILER_RT)" ] || cp $(COMPILER_RT) $(SYSROOT)/usr/lib/
+	@if [ -n "$(SHARED)" ]; then \
+	    cp $(BUILD)/lib/libc.so $(BUILD)/lib/Scrt1.o $(SYSROOT)/usr/lib/ && \
+	    mkdir -p $(SYSROOT)/lib && ln -sf ../usr/lib/libc.so $(SYSROOT)/lib/ld-musl-$(ARCH).so.1 && \
+	    echo "installed libc.so (and /lib/ld-musl-$(ARCH).so.1)"; fi
 	cp $(BUILD)/lib/libm.a $(BUILD)/lib/libpthread.a $(BUILD)/lib/librt.a $(BUILD)/lib/libdl.a $(BUILD)/lib/libutil.a $(BUILD)/lib/libcrypt.a $(SYSROOT)/usr/lib/   # empty: everything is in libc.a, for -lm and friends
 	@echo "installed into $(SYSROOT)"
 
@@ -76,6 +87,30 @@ $(OBJDIR)/config.mak: configure
 $(BUILD)/lib/libc.a: $(OBJDIR)/config.mak $(shell find src arch include crt -type f)
 	@mkdir -p $(BUILD)
 	$(MAKE) -C $(OBJDIR) -j8 AR="$(AR)" RANLIB="$(RANLIB)" install
+
+# musl's link steps (and configure's linker probes, which ignore LDFLAGS) run
+# the compiler driver's default `ld`; on a Mac that is Apple's. Put lld first
+# under that name instead.
+LDSHIM := $(OBJDIR)-ldshim
+SHPATH := $(LDSHIM):$(PATH)
+$(LDSHIM)/ld:
+	@mkdir -p $(LDSHIM)
+	ln -sf $(LD_LLD) $@
+
+$(SHOBJDIR)/config.mak: configure | $(LDSHIM)/ld
+	@mkdir -p $(SHOBJDIR)
+	cd $(SHOBJDIR) && PATH="$(SHPATH)" CC="$(CC) --target=$(TARGET)" AR="$(AR)" RANLIB="$(RANLIB)" \
+	    CFLAGS="-O2 -g" \
+	    $(CURDIR)/configure --target=$(TARGET) --prefix=$(BUILD)/shared \
+	        --enable-shared --disable-static --disable-gcc-wrapper --srcdir=$(CURDIR)
+
+# sic executables (and so their interpreter) carry OS/ABI 'S' (0x53);
+# lld takes it from the objects, which this compiler target does not set.
+$(BUILD)/lib/libc.so: $(SHOBJDIR)/config.mak $(COMPILER_RT) $(shell find src arch include crt ldso -type f)
+	PATH="$(SHPATH)" $(MAKE) -C $(SHOBJDIR) -j8 AR="$(AR)" RANLIB="$(RANLIB)" LIBCC="$(COMPILER_RT)" lib/libc.so lib/Scrt1.o
+	@mkdir -p $(BUILD)/lib
+	cp $(SHOBJDIR)/lib/libc.so $(SHOBJDIR)/lib/Scrt1.o $(BUILD)/lib/
+	printf 'S' | dd of=$@ bs=1 seek=7 count=1 conv=notrunc status=none
 
 abi:
 	python3 $(ABI)/gen.py $(ABI_FLAVOUR) > arch/$(ARCH)/bits/syscall.h.in
